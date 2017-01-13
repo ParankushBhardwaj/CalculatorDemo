@@ -11,93 +11,97 @@ import UIKit
 
 class ViewController: UIViewController {
     
-    
+    //display is what the user sees
     @IBOutlet weak var display: UILabel!
-    private var userIsInTheMiddleOfTyping = false
+    
+    
+    private var userIsInTheMiddleOfTyping = false {
+        didSet {
+            if !userIsInTheMiddleOfTyping {
+                userIsInTheMiddleOfFloatingPointNummer = false
+            }
+        }
+    }
+    private var userIsInTheMiddleOfFloatingPointNummer = false
+
     
     
     @IBOutlet weak var historyDisplay: UILabel!
     
-    func appendHistory(operandOrOperator: String) {
-        if historyDisplay.text != nil {
-            historyDisplay.text = historyDisplay.text! + operandOrOperator
-        } else {
-            historyDisplay.text = operandOrOperator
-        }
-    }
     
-    
+    //touchDigit is a function of use touching one of nine numbers and a .
     @IBAction func touchDigit(_ sender: UIButton) {
-        let digit = sender.currentTitle!
-        if userIsInTheMiddleOfTyping && digit != "."  {
+        var digit = sender.currentTitle!
+        
+        if digit == "." {
+            if userIsInTheMiddleOfFloatingPointNummer {
+                return
+            }
+            if !userIsInTheMiddleOfTyping {
+                digit = "0."
+            }
+            userIsInTheMiddleOfFloatingPointNummer = true
+        }
+        
+        if userIsInTheMiddleOfTyping {
             let textCurrentlyInDisplay = display.text!
             display.text = textCurrentlyInDisplay + digit
-        }  else {
-            if digit == "." {
-                display.text = "0" + digit
-            } else {
-                display.text = digit
-            }
+        } else {
+            display.text = digit
             userIsInTheMiddleOfTyping = true
         }
-        appendHistory(operandOrOperator: digit)
     }
     
     
-    
+
     private var displayValue: Double {
         get {
             return Double(display.text!)!
         }
         set {
             display.text = String(newValue)
-            //historyDisplay.text = String(newValue)
+            historyDisplay.text = brain.description + (brain.isPartialResult ? " …" : " =")
         }
     }
     
-    var savedProgram: CalculatorBrain.PropertyList?
+    //brain is used for the user input to be converted to answers
+    private var brain = CalculatorBrain()
     
-    
-    @IBAction func save() {
-        savedProgram = brain.program
+
+    @IBAction func performOperation(_ sender: UIButton) {
+        if  userIsInTheMiddleOfTyping {
+            //the number displayed before the user taps an operation key is 
+            //saved under setOperand.
+            brain.setOperand(operand: displayValue) //makes accumulator = displayValue
+            userIsInTheMiddleOfTyping = false
+        }
+        if let mathematicalSymbol = sender.currentTitle {
+            //if user taps a operation icon, perform that operation.
+            brain.performOperation(symbol: mathematicalSymbol)
+        }
+        displayValue = brain.result //displays result of .performOperation
     }
     
     
+    //this is used to store the result on display
+    var savedProgram: CalculatorBrain.PropertyList?
+    @IBAction func save() {
+        savedProgram = brain.storage
+    }
+    
+    //this extracts the stored value from brain and puts it back on the display.
     @IBAction func restore() {
         if savedProgram != nil {
-            brain.program = savedProgram!
+            brain.storage = savedProgram!
             displayValue = brain.result
         }
     }
     
-    private var brain = CalculatorBrain()
-    
-    
-    @IBAction func performOperation(_ sender: UIButton) {
-        if  userIsInTheMiddleOfTyping {
-            brain.setOperand(operand: displayValue)
-            userIsInTheMiddleOfTyping = false
-        }
-        if let mathematicalSymbol = sender.currentTitle {
-            appendHistory(operandOrOperator: mathematicalSymbol)
-            brain.performOperation(symbol: mathematicalSymbol)
-        }
-        
-        displayValue = brain.result
-    }
-    
-    
-    @IBAction func result(_ sender: UIButton) {
-        historyDisplay.text = ""
-    }
-    
-    
     
     @IBAction func clear(_ sender: UIButton) {
-        displayValue = 0
-        historyDisplay.text = ""
-        userIsInTheMiddleOfTyping = false
-        
+        brain = CalculatorBrain()
+        display.text = "0"
+        historyDisplay.text = " "
     }
     
 }
