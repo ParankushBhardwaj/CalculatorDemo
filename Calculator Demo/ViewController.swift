@@ -22,59 +22,67 @@ class ViewController: UIViewController {
             }
         }
     }
+    
     private var userIsInTheMiddleOfFloatingPointNummer = false
 
-    
     
     @IBOutlet weak var historyDisplay: UILabel!
     
     
     //touchDigit is a function of use touching one of nine numbers and a .
     @IBAction func touchDigit(_ sender: UIButton) {
-        var digit = sender.currentTitle!
-        
-        if digit == "." {
-            if userIsInTheMiddleOfFloatingPointNummer {
-                return
-            }
-            if !userIsInTheMiddleOfTyping {
-                digit = "0."
-            }
-            userIsInTheMiddleOfFloatingPointNummer = true
-        }
+        let digit = sender.currentTitle!
         
         if userIsInTheMiddleOfTyping {
-            let textCurrentlyInDisplay = display.text!
-            display.text = textCurrentlyInDisplay + digit
+            if digit != "." || !userIsInTheMiddleOfFloatingPointNummer {
+                let textCurrentlyInDisplay = display.text
+                display.text = textCurrentlyInDisplay! + digit
+                if digit == "." { userIsInTheMiddleOfFloatingPointNummer = true}
+            }
         } else {
-            display.text = digit
-            userIsInTheMiddleOfTyping = true
+            if !brain.isPartialResult {
+                containsVariable = false
+            }
+            if digit != "0" {
+                userIsInTheMiddleOfTyping = true
+            }
+            if digit == "." {
+                display.text = "0" + digit
+                userIsInTheMiddleOfFloatingPointNummer = true
+            }
+            else {
+                display.text = digit
+            }
         }
     }
     
-    
+
+    //brain is used for the user input to be converted to answers
+    private var brain = CalculatorBrain()
 
     private var displayValue: Double {
         get {
             return Double(display.text!)!
         }
         set {
-            display.text = String(newValue)
+            display.text = String(format: "%g", newValue)
             historyDisplay.text = brain.description + (brain.isPartialResult ? " …" : " =")
         }
     }
     
-    //brain is used for the user input to be converted to answers
-    private var brain = CalculatorBrain()
     
 
     @IBAction func performOperation(_ sender: UIButton) {
-        if  userIsInTheMiddleOfTyping {
-            //the number displayed before the user taps an operation key is 
-            //saved under setOperand.
-            brain.setOperand(operand: displayValue) //makes accumulator = displayValue
+        
+        if userIsInTheMiddleOfTyping {
+            
+            if !containsVariable {
+                brain.setOperand(operand: displayValue)
+            }
+            
             userIsInTheMiddleOfTyping = false
         }
+        
         if let mathematicalSymbol = sender.currentTitle {
             //if user taps a operation icon, perform that operation.
             brain.performOperation(symbol: mathematicalSymbol)
@@ -83,11 +91,48 @@ class ViewController: UIViewController {
     }
     
     
+    private var key = "M"
+    private var containsVariable = false
+    
+    @IBAction func setVariable(_ sender: UIButton) {
+        
+        let value = Double(display.text!)
+        brain.variableValues[key] = value
+        
+        let variableProgram = brain.storage
+        brain.storage = variableProgram
+        displayValue = brain.result
+        brain = CalculatorBrain() //used so that history is reset after variable init
+    }
+    
+    @IBAction func setOperandVariable(_ sender: UIButton) {
+        if let value = brain.variableValues[key] {
+            displayValue = value
+        }
+        brain.setOperand(variableName: sender.currentTitle!)
+        containsVariable = true
+        userIsInTheMiddleOfTyping = false
+    }
+    
+    
+    @IBAction func Undo(_ sender: UIButton) {
+        if userIsInTheMiddleOfTyping {
+            var displayText = display.text!
+            displayText.remove(at: displayText.index(before: displayText.endIndex))
+            display.text = displayText
+        } else {
+            brain.undo()
+        }
+    }
+    
+
+
     //this is used to store the result on display
     var savedProgram: CalculatorBrain.PropertyList?
     @IBAction func save() {
         savedProgram = brain.storage
     }
+    
     
     //this extracts the stored value from brain and puts it back on the display.
     @IBAction func restore() {
